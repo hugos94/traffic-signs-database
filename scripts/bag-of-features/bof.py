@@ -71,7 +71,8 @@ def stack_descriptors(X_train):
 
 def main():
 	print("Getting images paths")
-	dataset_path = ".\..\..\datasets\initial-dataset"
+	#dataset_path = ".\..\..\datasets\initial-dataset"
+	dataset_path = ".\..\..\..\\17keslon_augmentation_flip+rotation+projection_resize_120"
 	images_paths = get_images_paths(dataset_path)
 	
 	start = time.time()
@@ -83,6 +84,85 @@ def main():
 	print("Performing K Fold Separation")
 	skf = StratifiedKFold(n_splits = 5, shuffle=False)
 	skf.get_n_splits(data,target)
+
+	inicio = time.time()
+	iteracao = 0
+	accuracy_list = []
+	kappa_list = []
+	for train_index, test_index in skf.split(data, target):
+		print("Iteração: {}".format(iteracao))
+		iteracao += 1
+
+		X_train = []
+		y_train = []
+		X_test = []
+		y_test = []
+
+		#print("TRAIN:", len(train_index), "TEST:", len(test_index))
+
+		for index in train_index:
+			X_train.append(data[index])
+			y_train.append(target[index])
+
+		for index in test_index:
+			X_test.append(data[index])
+			y_test.append(target[index])
+
+		#print(len(data))
+		#print(len(X_train))
+		#print(len(X_test))
+
+		descriptors = stack_descriptors(X_train)
+
+		k = 500
+		kmeans = MiniBatchKMeans(n_clusters=k).fit(descriptors)
+		print("{}\n".format(kmeans))
+
+		im_features = numpy.zeros((len(X_train), k), "float32")
+		i = 0
+		for descriptor in X_train:
+			words = kmeans.predict(descriptor)
+			for w in words:
+				im_features[i][w] += 1
+			i += 1
+
+		print(im_features)
+
+		stdSlr = StandardScaler().fit(im_features)
+		im_features = stdSlr.transform(im_features)
+
+		#clf = svm.LinearSVC() #One-vs-All
+		clf = svm.SVC() #One-vs-One
+		clf.fit(im_features, numpy.array(y_train))
+
+		im_features_test = numpy.zeros((len(X_test), k), "float32")
+		i = 0
+		for descriptor in X_test:
+			words = kmeans.predict(descriptor)
+			for w in words:
+				im_features_test[i][w] += 1
+			i += 1
+
+		stdSlr = StandardScaler().fit(im_features_test)
+		im_features_test = stdSlr.transform(im_features_test)
+
+		predictions = [prediction for prediction in clf.predict(im_features_test)]
+
+		accuracy = accuracy_score(y_test,predictions)
+		cohen_kappa = cohen_kappa_score(y_test,predictions)
+		accuracy_list.append(accuracy)
+		kappa_list.append(cohen_kappa)
+		report = classification_report(y_test,predictions)
+
+		cnf_matrix = confusion_matrix(y_test,predictions)
+
+		print("Acurácia: {}".format(accuracy))
+		print("Kappa: {}".format(cohen_kappa))
+		print(report)
+		print("Matriz de confusão:\n{}\n\n".format(cnf_matrix))
+
+	fim = time.time()
+	print("Tempo: " + str(fim-inicio))
 
 if __name__ == '__main__':
 	start = time.time()
