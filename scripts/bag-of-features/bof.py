@@ -69,8 +69,8 @@ def stack_descriptors(X_train):
 		descriptors = numpy.concatenate((descriptors, descriptor), axis=0)
 	return descriptors
 
-def main():
-	print("Getting images paths")
+def main(clustering_method, n_clusters, classifier):
+	print("Getting images paths\n")
 	#dataset_path = ".\..\..\datasets\initial-dataset"
 	dataset_path = ".\..\..\..\\17keslon_augmentation_flip+rotation+projection_resize_120"
 	images_paths = get_images_paths(dataset_path)
@@ -81,24 +81,17 @@ def main():
 	end = time.time()
 	print("Time: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
-	print("Performing K Fold Separation")
+	print("Performing K Fold Separation\n")
 	skf = StratifiedKFold(n_splits = 5, shuffle=False)
 	skf.get_n_splits(data,target)
 
-	inicio = time.time()
-	iteracao = 0
-	accuracy_list = []
-	kappa_list = []
+	iteration = 0
+	accuracy_list, kappa_list = [], []
 	for train_index, test_index in skf.split(data, target):
-		print("Iteração: {}".format(iteracao))
-		iteracao += 1
+		print("Iteração: {}".format(iteration))
+		startIteration = time.time()
 
-		X_train = []
-		y_train = []
-		X_test = []
-		y_test = []
-
-		#print("TRAIN:", len(train_index), "TEST:", len(test_index))
+		X_train, y_train, X_test, y_test = [], [], [], []
 
 		for index in train_index:
 			X_train.append(data[index])
@@ -108,46 +101,54 @@ def main():
 			X_test.append(data[index])
 			y_test.append(target[index])
 
-		#print(len(data))
-		#print(len(X_train))
-		#print(len(X_test))
-
+		print("Stacking descriptors")
 		descriptors = stack_descriptors(X_train)
 
-		k = 500
-		kmeans = MiniBatchKMeans(n_clusters=k).fit(descriptors)
-		print("{}\n".format(kmeans))
+		print("Performing clustering")
+		start = time.time()
+		clustering_method.fit(descriptors)
+		end = time.time()
+		print("Time spent on clustering: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
-		im_features = numpy.zeros((len(X_train), k), "float32")
+		print("Creating codebook from traning fold")
+		im_features = numpy.zeros((len(X_train), n_clusters), "float32")
 		i = 0
 		for descriptor in X_train:
-			words = kmeans.predict(descriptor)
+			words = clustering_method.predict(descriptor)
 			for w in words:
 				im_features[i][w] += 1
 			i += 1
 
-		print(im_features)
-
+		print("Standardize training features")
 		stdSlr = StandardScaler().fit(im_features)
 		im_features = stdSlr.transform(im_features)
 
-		#clf = svm.LinearSVC() #One-vs-All
-		clf = svm.SVC() #One-vs-One
-		clf.fit(im_features, numpy.array(y_train))
+		print("Training Classifier")
+		start = time.time()
+		classifier.fit(im_features, numpy.array(y_train))
+		end = time.time()
+		print("Time spent to training classifier: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
-		im_features_test = numpy.zeros((len(X_test), k), "float32")
+		print("Creating codebook from testing fold")
+		im_features_test = numpy.zeros((len(X_test), n_clusters), "float32")
 		i = 0
 		for descriptor in X_test:
-			words = kmeans.predict(descriptor)
+			words = clustering_method.predict(descriptor)
 			for w in words:
 				im_features_test[i][w] += 1
 			i += 1
 
+		print("Standardize testing features")
 		stdSlr = StandardScaler().fit(im_features_test)
 		im_features_test = stdSlr.transform(im_features_test)
 
-		predictions = [prediction for prediction in clf.predict(im_features_test)]
+		print("Making predictions")
+		start = time.time()
+		predictions = [prediction for prediction in classifier.predict(im_features_test)]
+		end = time.time()
+		print("Time spent on prediction: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
+		print("Calculating metrics")
 		accuracy = accuracy_score(y_test,predictions)
 		cohen_kappa = cohen_kappa_score(y_test,predictions)
 		accuracy_list.append(accuracy)
@@ -156,17 +157,28 @@ def main():
 
 		cnf_matrix = confusion_matrix(y_test,predictions)
 
-		print("Acurácia: {}".format(accuracy))
+		print("Acuracy: {}".format(accuracy))
 		print("Kappa: {}".format(cohen_kappa))
-		print(report)
-		print("Matriz de confusão:\n{}\n\n".format(cnf_matrix))
+		#print(report)
+		#print("Matriz de confusão:\n{}\n\n".format(cnf_matrix))
 
-	fim = time.time()
-	print("Tempo: " + str(fim-inicio))
+		endIteration = time.time()
+		print("Total time of iteration {}: {} seconds or {} minutes\n".format(iteration, endIteration-startIteration, (endIteration-startIteration)/60))
+
+		iteration += 1
+
+	accuracy_list = numpy.array(accuracy_list)
+	print("Mean Acuracy: %0.4f (+/- %0.4f)" % (accuracy_list.mean(), accuracy_list.std() * 2))
+	kappa_list = numpy.array(kappa_list)
+	print("Mean Kappa: %0.4f (+/- %0.4f)" % (kappa_list.mean(), kappa_list.std() * 2))
 
 if __name__ == '__main__':
 	start = time.time()
-	main()
+	n_clusters = 10000
+	clustering_method = MiniBatchKMeans(n_clusters=n_clusters)
+	#classifier = svm.LinearSVC() #One-vs-All
+	classifier = svm.SVC() #One-vs-One
+	main(clustering_method, n_clusters, classifier)
 	end = time.time()
 	print("\nTotal time: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
