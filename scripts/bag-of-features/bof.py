@@ -159,8 +159,8 @@ def main(clustering_method, n_clusters, classifier):
 
 		cnf_matrix = confusion_matrix(y_test,predictions)
 
-		print("Acuracy: {}".format(accuracy))
-		print("Kappa: {}".format(cohen_kappa))
+		print("*****Acuracy: {}*****".format(accuracy))
+		print("*****Kappa:   {}*****".format(cohen_kappa))
 		#print(report)
 		#print("Matriz de confusão:\n{}\n\n".format(cnf_matrix))
 
@@ -170,9 +170,9 @@ def main(clustering_method, n_clusters, classifier):
 		iteration += 1
 
 	accuracy_list = numpy.array(accuracy_list)
-	print("Mean Acuracy: %0.4f (+/- %0.4f)" % (accuracy_list.mean(), accuracy_list.std() * 2))
+	print("#####Mean Acuracy: %0.4f (+/- %0.4f)#####" % (accuracy_list.mean(), accuracy_list.std() * 2))
 	kappa_list = numpy.array(kappa_list)
-	print("Mean Kappa: %0.4f (+/- %0.4f)" % (kappa_list.mean(), kappa_list.std() * 2))
+	print("#####Mean Kappa:   %0.4f (+/- %0.4f)#####" % (kappa_list.mean(), kappa_list.std() * 2))
 
 if __name__ == '__main__':
 	start = time.time()
