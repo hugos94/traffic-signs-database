@@ -69,10 +69,8 @@ def stack_descriptors(X_train):
 		descriptors = numpy.concatenate((descriptors, descriptor), axis=0)
 	return descriptors
 
-def main(clustering_method, n_clusters, classifier):
+def main(dataset_path, clustering_method, n_clusters, classifier):
 	print("Getting images paths\n")
-	#dataset_path = ".\..\..\datasets\initial-dataset"
-	dataset_path = ".\..\..\..\\17keslon_augmentation_flip+rotation+projection_resize_120"
 	images_paths = get_images_paths(dataset_path)
 	
 	start = time.time()
@@ -176,11 +174,12 @@ def main(clustering_method, n_clusters, classifier):
 
 if __name__ == '__main__':
 	start = time.time()
+	dataset_path = ".\..\..\..\\17keslon_augmentation_flip+rotation+projection_resize_120"
 	n_clusters = 500
 	clustering_method = MiniBatchKMeans(n_clusters=n_clusters)
 	#classifier = svm.LinearSVC() #One-vs-All
 	classifier = svm.SVC() #One-vs-One
-	main(clustering_method, n_clusters, classifier)
+	main(dataset_path, clustering_method, n_clusters, classifier)
 	end = time.time()
 	print("\nTotal time: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
