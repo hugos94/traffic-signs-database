@@ -49,8 +49,8 @@ def get_images_paths(folder_path):
 
 def detect_and_compute_keypoints(image_paths):
 	# Detect and compute keypoints found on images
-	detector = cv2.xfeatures2d.SURF_create()
-	descriptor = cv2.xfeatures2d.SURF_create()
+	detector = cv2.xfeatures2d.SIFT_create()
+	descriptor = cv2.xfeatures2d.SIFT_create()
 	data = []
 	target = []
 	for image_path in image_paths:
@@ -88,6 +88,8 @@ def main(clustering_method, n_clusters, classifier):
 	iteration = 0
 	accuracy_list, kappa_list = [], []
 	for train_index, test_index in skf.split(data, target):
+		classifier_copy = copy.deepcopy(classifier)
+		clustering_method_copy = copy.deepcopy(clustering_method)
 		print("Iteração: {}".format(iteration))
 		startIteration = time.time()
 
@@ -106,7 +108,7 @@ def main(clustering_method, n_clusters, classifier):
 
 		print("Performing clustering")
 		start = time.time()
-		clustering_method.fit(descriptors)
+		clustering_method_copy.fit(descriptors)
 		end = time.time()
 		print("Time spent on clustering: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
@@ -114,7 +116,7 @@ def main(clustering_method, n_clusters, classifier):
 		im_features = numpy.zeros((len(X_train), n_clusters), "float32")
 		i = 0
 		for descriptor in X_train:
-			words = clustering_method.predict(descriptor)
+			words = clustering_method_copy.predict(descriptor)
 			for w in words:
 				im_features[i][w] += 1
 			i += 1
@@ -125,7 +127,7 @@ def main(clustering_method, n_clusters, classifier):
 
 		print("Training Classifier")
 		start = time.time()
-		classifier.fit(im_features, numpy.array(y_train))
+		classifier_copy.fit(im_features, numpy.array(y_train))
 		end = time.time()
 		print("Time spent to training classifier: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
@@ -133,7 +135,7 @@ def main(clustering_method, n_clusters, classifier):
 		im_features_test = numpy.zeros((len(X_test), n_clusters), "float32")
 		i = 0
 		for descriptor in X_test:
-			words = clustering_method.predict(descriptor)
+			words = clustering_method_copy.predict(descriptor)
 			for w in words:
 				im_features_test[i][w] += 1
 			i += 1
@@ -144,7 +146,7 @@ def main(clustering_method, n_clusters, classifier):
 
 		print("Making predictions")
 		start = time.time()
-		predictions = [prediction for prediction in classifier.predict(im_features_test)]
+		predictions = [prediction for prediction in classifier_copy.predict(im_features_test)]
 		end = time.time()
 		print("Time spent on prediction: {} seconds or {} minutes\n".format(end-start, (end-start)/60))
 
@@ -174,7 +176,7 @@ def main(clustering_method, n_clusters, classifier):
 
 if __name__ == '__main__':
 	start = time.time()
-	n_clusters = 10000
+	n_clusters = 500
 	clustering_method = MiniBatchKMeans(n_clusters=n_clusters)
 	#classifier = svm.LinearSVC() #One-vs-All
 	classifier = svm.SVC() #One-vs-One
